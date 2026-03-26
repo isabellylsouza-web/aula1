@@ -1,0 +1,173 @@
+import mysql.connector
+from datetime import datetime
+import random
+import json
+
+# Conexão com o banco
+
+
+try:
+    conexao = mysql.connector.connect(
+        host="localhost",
+        user="aluno",
+        password="123456",
+        database="monitoramentoindustrial"
+    )
+    print("Conectado!")
+except Exception as e:
+    print("Erro:", e)
+
+# Funções de cadastro
+
+def cadastrar_maquina():
+    nome = input("Nome da máquina: ")
+    setor = input("Setor: ")
+    cursor.execute("INSERT INTO maquinas (nome, setor) VALUES (%s, %s)", (nome, setor))
+    conexao.commit()
+    print(f"Máquina '{nome}' cadastrada com sucesso!")
+
+def cadastrar_sensor():
+    nome = input("Nome do sensor: ")
+    cursor.execute("SELECT id, nome FROM maquinas")
+    maquinas = cursor.fetchall()
+    if not maquinas:
+        print("Cadastre uma máquina primeiro!")
+        return
+    print("Máquinas disponíveis:")
+    for m in maquinas:
+        print(f"{m[0]} - {m[1]}")
+    maquina_id = int(input("Escolha o ID da máquina: "))
+    cursor.execute("INSERT INTO sensores (nome, maquina_id) VALUES (%s, %s)", (nome, maquina_id))
+    conexao.commit()
+    print(f"Sensor '{nome}' cadastrado com sucesso!")
+
+def cadastrar_operador():
+    nome = input("Nome do operador: ")
+    cursor.execute("INSERT INTO operadores (nome) VALUES (%s)", (nome,))
+    conexao.commit()
+    print(f"Operador '{nome}' cadastrado com sucesso!")
+
+# Função para registrar leituras
+ 
+
+def registrar_leitura():
+    cursor.execute("SELECT id, nome FROM sensores")
+    sensores = cursor.fetchall()
+    if not sensores:
+        print("Cadastre um sensor primeiro!")
+        return
+    print("Sensores disponíveis:")
+    for s in sensores:
+        print(f"{s[0]} - {s[1]}")
+    sensor_id = int(input("Escolha o ID do sensor: "))
+    temperatura = random.randint(50, 100)
+    horario = datetime.now()
+   
+    # Inserir leitura no MySQL
+    cursor.execute(
+        "INSERT INTO leituras (sensor_id, temperatura, horario) VALUES (%s, %s, %s)",
+        (sensor_id, temperatura, horario)
+    )
+    conexao.commit()
+   
+    # Criar alerta automático
+    if temperatura <= 70:
+        status = "NORMAL"
+    elif temperatura <= 90:
+        status = "ALERTA"
+    else:
+        status = "CRÍTICO"
+   
+    cursor.execute(
+        "INSERT INTO alertas (leitura_id, status) VALUES (LAST_INSERT_ID(), %s)",
+        (status,)
+    )
+    conexao.commit()
+   
+    print(f"Leitura registrada: {temperatura}°C - Status: {status}")
+   
+    # Salvar em JSON
+    dados = {
+        "sensor_id": sensor_id,
+        "temperatura": temperatura,
+        "horario": horario.strftime("%Y-%m-%d %H:%M:%S"),
+        "status": status
+    }
+    with open("dados.json", "a") as f:
+        json.dump(dados, f)
+        f.write("\n")
+
+# Funções de consulta
+
+def listar_maquinas():
+    cursor.execute("SELECT id, nome, setor FROM maquinas")
+    maquinas = cursor.fetchall()
+    if not maquinas:
+        print("Nenhuma máquina cadastrada.")
+    else:
+        for m in maquinas:
+            print(f"ID: {m[0]}, Nome: {m[1]}, Setor: {m[2]}")
+
+def listar_sensores():
+    cursor.execute("SELECT id, nome, maquina_id FROM sensores")
+    sensores = cursor.fetchall()
+    if not sensores:
+        print("Nenhum sensor cadastrado.")
+    else:
+        for s in sensores:
+            print(f"ID: {s[0]}, Nome: {s[1]}, Máquina ID: {s[2]}")
+
+def listar_leituras():
+    cursor.execute("SELECT id, sensor_id, temperatura, horario FROM leituras")
+    leituras = cursor.fetchall()
+    if not leituras:
+        print("Nenhuma leitura registrada.")
+    else:
+        for l in leituras:
+            print(f"ID: {l[0]}, Sensor ID: {l[1]}, Temperatura: {l[2]}°C, Horário: {l[3]}")
+           
+# Menu principal
+# ==========================
+def menu():
+    print("\n===== Sistema de Automação Industrial =====")
+    print("1 - Cadastrar Máquina")
+    print("2 - Cadastrar Sensor")
+    print("3 - Cadastrar Operador")
+    print("4 - Registrar Leitura")
+    print("5 - Listar Máquinas")
+    print("6 - Listar Sensores")
+    print("7 - Listar Leituras")
+    print("8 - Sair")
+    return input("Escolha uma opção: ")
+
+# Loop principal
+while True:
+    opcao = menu()
+    if opcao == "1":
+        cadastrar_maquina()
+    elif opcao == "2":
+        cadastrar_sensor()
+    elif opcao == "3":
+        cadastrar_operador()
+    elif opcao == "4":
+        registrar_leitura()
+    elif opcao == "5":
+        listar_maquinas()
+    elif opcao == "6":
+        listar_sensores()
+    elif opcao == "7":
+        listar_leituras()
+    elif opcao == "8":
+        print("Saindo do sistema...")
+        break
+    else:
+        print("Opção inválida!")
+    nome = input("Nome da máquina: ")
+    setor = input("Setor: ")
+
+    sql = "INSERT INTO maquinas (nome, setor) VALUES (%s, %s)"
+    valores = (nome, setor)
+
+    cursor.execute(sql, valores)
+    conexao.commit()
+    print("Máquina cadastrada!")
